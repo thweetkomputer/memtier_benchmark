@@ -365,6 +365,9 @@ void client::create_request(struct timeval timestamp, unsigned int conn_id)
 {
     // are we using arbitrary command?
     if (m_config->arbitrary_commands->is_defined()) {
+        if (m_config->data_import) {
+            dynamic_cast<import_object_generator*>(m_obj_gen)->read_next_item();
+        }
         if (create_arbitrary_request(m_executed_command_index, timestamp, conn_id)) {
             advance_arbitrary_command_index();
             m_reqs_generated++;
