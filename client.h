@@ -76,9 +76,11 @@ protected:
     unsigned long long m_tot_wait_ops;            // Total number of WAIT ops
 
     keylist *m_keylist;                           // used to construct multi commands
+    int m_thread_id;
+    int m_client_id;
 
 public:
-    client(client_group* group);
+    client(client_group* group, int thread_id = 0, int client_id = 0);
     client(struct event_base *event_base, benchmark_config *config, abstract_protocol *protocol, object_generator *obj_gen);
     virtual ~client();
     bool setup_client(benchmark_config *config, abstract_protocol *protocol, object_generator *obj_gen);
@@ -199,8 +201,9 @@ protected:
     abstract_protocol* m_protocol;
     object_generator* m_obj_gen;
     std::vector<client*> m_clients;
+    int m_thread_id;
 public:
-    client_group(benchmark_config *cfg, abstract_protocol *protocol, object_generator* obj_gen);
+    client_group(benchmark_config *cfg, abstract_protocol *protocol, object_generator* obj_gen, int thread_id = 0);
     ~client_group();
 
     int create_clients(int count);

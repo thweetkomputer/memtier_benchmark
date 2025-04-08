@@ -19,6 +19,7 @@
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
+#include <cassert>
 #include <event2/buffer.h>
 #include <vector>
 #include "memtier_benchmark.h"

@@ -121,6 +121,7 @@ public:
     const char * get_key_prefix();
     virtual const char* get_value(unsigned long long key_index, unsigned int *len);
     virtual unsigned int get_expiry();
+    virtual bool move_to_next_item(int offset_line);
 };
 
 class imported_keylist;
@@ -161,6 +162,7 @@ public:
 
     virtual const char* get_value(unsigned long long key_index, unsigned int *len);
     virtual unsigned int get_expiry();
+    virtual bool move_to_next_item(int offset_line);
 
     bool open_file(void);
 };

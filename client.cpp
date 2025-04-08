@@ -16,6 +16,8 @@
  * along with memtier_benchmark.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "shard_connection.h"
+#include <cassert>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -63,6 +65,17 @@ bool client::setup_client(benchmark_config *config, abstract_protocol *protocol,
     m_connections.push_back(conn);
 
     m_obj_gen = objgen->clone();
+
+    if (config->data_import) {
+        // calculate start offset of the object generator
+        auto total_line = config->requests * total_num_of_clients;
+        auto lines_per_thread = total_line / config->threads; 
+        auto lines_per_client = lines_per_thread / config->clients;
+        assert(lines_per_client > 0);
+        auto start_offset = lines_per_thread * m_thread_id + lines_per_client * m_client_id;
+        assert(m_obj_gen->move_to_next_item(start_offset));
+    }
+    
     assert(m_obj_gen != NULL);
 
     if (config->distinct_client_seed && config->randomize)
@@ -99,12 +112,12 @@ bool client::setup_client(benchmark_config *config, abstract_protocol *protocol,
     return true;
 }
 
-client::client(client_group* group) :
+client::client(client_group* group, int thread_id, int client_id) :
         m_event_base(NULL), m_initialized(false), m_end_set(false), m_config(NULL),
         m_obj_gen(NULL), m_stats(group->get_config()), m_reqs_processed(0), m_reqs_generated(0),
         m_set_ratio_count(0), m_get_ratio_count(0),
         m_arbitrary_command_ratio_count(0), m_executed_command_index(0),
-        m_tot_set_ops(0), m_tot_wait_ops(0)
+        m_tot_set_ops(0), m_tot_wait_ops(0), m_thread_id(thread_id), m_client_id(client_id)
 {
     m_event_base = group->get_event_base();
 
@@ -584,8 +597,9 @@ bool verify_client::finished(void)
 
 ///////////////////////////////////////////////////////////////////////////
 
-client_group::client_group(benchmark_config* config, abstract_protocol *protocol, object_generator* obj_gen) :
-    m_base(NULL), m_config(config), m_protocol(protocol), m_obj_gen(obj_gen)
+client_group::client_group(benchmark_config* config, abstract_protocol *protocol, object_generator* obj_gen,
+                           int thread_id) :
+    m_base(NULL), m_config(config), m_protocol(protocol), m_obj_gen(obj_gen), m_thread_id(thread_id)
 {
     m_base = event_base_new();
     assert(m_base != NULL);
@@ -615,7 +629,7 @@ int client_group::create_clients(int num)
         if (m_config->cluster_mode)
             c = new cluster_client(this);
         else
-            c = new client(this);
+            c = new client(this, m_thread_id, i);
 
         assert(c != NULL);
 

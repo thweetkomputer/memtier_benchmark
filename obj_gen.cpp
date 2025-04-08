@@ -431,6 +431,11 @@ unsigned int object_generator::get_expiry() {
     return expiry;
 }
 
+bool object_generator::move_to_next_item(int offset_line) {
+    // do nothing
+    return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 imported_keylist::imported_keylist(const char *filename)
@@ -579,4 +584,22 @@ unsigned int import_object_generator::get_expiry() {
     }
 
     return expiry;
+}
+
+bool import_object_generator::move_to_next_item(int offset_line) {
+    // Skip to the start offset if needed
+    if (offset_line > 0) {
+        unsigned long long skipped = 0;
+        while (skipped < offset_line) {
+            memcache_item *i = m_reader.read_item();
+            if (i == NULL) {
+                // Reached EOF before reaching offset
+                break;
+                return false;
+            }
+            delete i;
+            skipped++;
+        }
+    }
+    return true;
 }
