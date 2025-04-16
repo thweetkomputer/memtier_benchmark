@@ -26,14 +26,14 @@
  * items from it.
  */
 class file_reader {
-protected:
+public:
     const char *m_filename;     /** name of file */
     FILE* m_file;               /** handle of open file */
 
     unsigned int m_line;        /** current line being read */
 
     char* read_string(unsigned int len, unsigned int alloc_len, unsigned int* actual_len);
-public:
+
     file_reader(const char *filename);
     file_reader(const file_reader& from);
     ~file_reader();

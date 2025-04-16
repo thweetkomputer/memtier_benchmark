@@ -16,6 +16,7 @@
  * along with memtier_benchmark.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cassert>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -431,7 +432,7 @@ unsigned int object_generator::get_expiry() {
     return expiry;
 }
 
-bool object_generator::move_to_next_item(int offset_line) {
+bool object_generator::move_to_next_item(int num_step) {
     // do nothing
     return true;
 }
@@ -523,8 +524,22 @@ import_object_generator::import_object_generator(const import_object_generator& 
         m_key_min = 1;
     }
     if (from.m_reader_opened) {
-        bool r = m_reader.open_file();
+        // Get the current file position from the source before opening our file
+        long file_pos = 0;
+        if (from.m_reader.m_file != NULL) {
+            file_pos = ftell(from.m_reader.m_file);
+        }
+        
+        // Open our file
+        bool r = open_file();
         assert(r == true);
+        
+        // Seek to the same position as the source file
+        if (file_pos > 0) {
+            fseek(m_reader.m_file, file_pos, SEEK_SET);
+            // Also copy the line number being read to maintain consistency
+            m_reader.m_line = from.m_reader.m_line;
+        }
     }
 }
 
@@ -586,11 +601,11 @@ unsigned int import_object_generator::get_expiry() {
     return expiry;
 }
 
-bool import_object_generator::move_to_next_item(int offset_line) {
-    // Skip to the start offset if needed
-    if (offset_line > 0) {
+bool import_object_generator::move_to_next_item(int num_step) {
+    // move o
+    if (num_step > 0) {
         unsigned long long skipped = 0;
-        while (skipped < offset_line) {
+        while (skipped < num_step) {
             memcache_item *i = m_reader.read_item();
             if (i == NULL) {
                 // Reached EOF before reaching offset

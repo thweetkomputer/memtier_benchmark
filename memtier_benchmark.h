@@ -21,6 +21,7 @@
 
 #include <vector>
 #include "config_types.h"
+#include "obj_gen.h"
 
 #ifdef USE_TLS
 #include <openssl/ssl.h>
@@ -108,6 +109,7 @@ struct benchmark_config {
     unsigned int request_rate;
     unsigned int request_per_interval;
     unsigned int request_interval_microsecond;
+    object_generator *lastest_obj_gen = nullptr;
 #ifdef USE_TLS
     bool tls;
     const char *tls_cert;

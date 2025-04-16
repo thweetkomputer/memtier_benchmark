@@ -1,0 +1,12 @@
+memtier_benchmark \
+    --server=127.0.0.1 \
+    --port=6380 \
+    --protocol=redis \
+    --command="set __key__ __data__" \
+    --key-prefix="" \
+    --key-minimum=1 \
+    --key-maximum=100000 \
+    --command-key-pattern=S \
+    --threads=4 \   
+    --clients=4 \
+    --requests=1000000

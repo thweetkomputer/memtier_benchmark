@@ -54,11 +54,16 @@
 #include "cluster_client.h"
 
 
-bool client::setup_client(benchmark_config *config, abstract_protocol *protocol, object_generator *objgen)
+bool client::setup_client(benchmark_config *config, abstract_protocol *protocol, 
+                          object_generator *objgen)
 {
     m_config = config;
     assert(m_config != NULL);
     unsigned long long total_num_of_clients = config->clients*config->threads;
+
+    if (m_config->lastest_obj_gen) {
+        objgen = m_config->lastest_obj_gen;
+    }
 
     // create main connection
     shard_connection* conn = new shard_connection(m_connections.size(), this, m_config, m_event_base, protocol);
@@ -67,13 +72,14 @@ bool client::setup_client(benchmark_config *config, abstract_protocol *protocol,
     m_obj_gen = objgen->clone();
 
     if (config->data_import) {
+        m_config->lastest_obj_gen = m_obj_gen;
         // calculate start offset of the object generator
         auto total_line = config->requests * total_num_of_clients;
         auto lines_per_thread = total_line / config->threads; 
         auto lines_per_client = lines_per_thread / config->clients;
         assert(lines_per_client > 0);
-        auto start_offset = lines_per_thread * m_thread_id + lines_per_client * m_client_id;
-        assert(m_obj_gen->move_to_next_item(start_offset));
+        bool ok = m_obj_gen->move_to_next_item(lines_per_client);
+        assert(ok);
     }
     
     assert(m_obj_gen != NULL);

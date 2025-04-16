@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define parameters
-THREADS=4
-CLIENTS=4
+THREADS=16
+CLIENTS=1
 DATA_FILE="/home/yicw/code/memtier_benchmark/data/vectors_data.csv"
 WARM_DATA_FILE="/home/yicw/code/memtier_benchmark/data/warm_vectors_data.csv"
 
@@ -53,12 +53,12 @@ memtier_benchmark \
 # Run main stage with calculated parameters
 echo ""
 echo "=== Starting Main Stage ==="
-# memtier_benchmark \
-#     --server=127.0.0.1 \
-#     --port=6380 \
-#     --protocol=redis \
-#     --command="addvec vector_table __key__ __data__" \
-#     --data-import="$DATA_FILE" \
-#     --threads=$THREADS \
-#     --clients=$CLIENTS \
-#     --requests=$REQUESTS
+memtier_benchmark \
+    --server=127.0.0.1 \
+    --port=6380 \
+    --protocol=redis \
+    --command="addvec vector_table __key__ __data__" \
+    --data-import="$DATA_FILE" \
+    --threads=$THREADS \
+    --clients=$CLIENTS \
+    --requests=$REQUESTS

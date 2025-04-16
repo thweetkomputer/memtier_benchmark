@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Define parameters
-THREADS=8
-CLIENTS=64
-DATA_FILE="/home/yicw/code/memtier_benchmark/data/search_vectors_data.csv"
+THREADS=64
+CLIENTS=2
+DATA_FILE="./data/search_vectors_data.csv"
 
 # Calculate total number of clients for main stage
 TOTAL_CLIENTS=$((THREADS * CLIENTS))
