@@ -39,3 +39,4 @@ __pycache__
 *.gcov
 *.gcda
 *.info
+/data
