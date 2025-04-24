@@ -2,4 +2,4 @@ make clean
 autoreconf -ivf
 ./configure
 make
-sudo make install
+#sudo make install

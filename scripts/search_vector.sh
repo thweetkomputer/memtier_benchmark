@@ -1,8 +1,14 @@
 #!/bin/bash
 
 # Define parameters
-THREADS=64
-CLIENTS=2
+THREADS=$1
+
+if [ -z "$THREADS" ]; then
+    echo "Error: Please provide a number of threads as an argument."
+    exit 1
+fi
+
+CLIENTS=1
 DATA_FILE="./data/search_vectors_data.csv"
 
 # Calculate total number of clients for main stage
@@ -15,15 +21,9 @@ TOTAL_LINES=$((TOTAL_LINES - 1))
 
 # Calculate requests per client for each stage
 REQUESTS=$((TOTAL_LINES / TOTAL_CLIENTS))
-
+REDIS_SERVER=192.168.122.33
 K=10
 
-echo "=== Warmup Stage Settings ==="
-echo "Warm data file: $WARM_DATA_FILE"
-echo "Warm data lines: $WARM_TOTAL_LINES"
-echo "Warmup clients: $WARMUP_CLIENTS (threads=$WARMUP_THREADS × clients=$WARMUP_CLIENTS)"
-echo "Warmup requests: $WARMUP_REQUESTS"
-echo ""
 echo "=== Main Stage Settings ==="
 echo "Main data file: $DATA_FILE"
 echo "Main data lines: $TOTAL_LINES"
@@ -33,8 +33,8 @@ echo "Requests per client: $REQUESTS"
 # Run main stage with calculated parameters
 echo ""
 echo "=== Starting Main Stage ==="
-memtier_benchmark \
-    --server=127.0.0.1 \
+./memtier_benchmark \
+    --server=$REDIS_SERVER \
     --port=6380 \
     --protocol=redis \
     --command="searchvec vector_table $K __data__" \

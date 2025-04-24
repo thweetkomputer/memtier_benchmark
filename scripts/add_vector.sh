@@ -1,10 +1,20 @@
 #!/bin/bash
 
 # Define parameters
-THREADS=16
+
+if [ -z "$1" ]; then
+    echo "Error: Please provide a number of threads as an argument."
+    exit 1
+fi
+
+THREADS=$1
 CLIENTS=1
-DATA_FILE="/home/yicw/code/memtier_benchmark/data/vectors_data.csv"
-WARM_DATA_FILE="/home/yicw/code/memtier_benchmark/data/warm_vectors_data.csv"
+DATA_FILE="./data/vectors_data.csv"
+WARM_DATA_FILE="./data/warm_vectors_data.csv"
+
+# Redis connection parameters
+REDIS_SERVER="192.168.122.33"
+REDIS_PORT="6380"
 
 # Warmup parameters
 WARMUP_THREADS=1
@@ -40,9 +50,9 @@ echo "Requests per client: $REQUESTS"
 # Run warmup stage with one client
 echo ""
 echo "=== Starting Warmup Stage ==="
-memtier_benchmark \
-    --server=127.0.0.1 \
-    --port=6380 \
+./memtier_benchmark \
+    --server=$REDIS_SERVER \
+    --port=$REDIS_PORT \
     --protocol=redis \
     --command="addvec vector_table __key__ __data__" \
     --data-import="$WARM_DATA_FILE" \
@@ -53,9 +63,9 @@ memtier_benchmark \
 # Run main stage with calculated parameters
 echo ""
 echo "=== Starting Main Stage ==="
-memtier_benchmark \
-    --server=127.0.0.1 \
-    --port=6380 \
+./memtier_benchmark \
+    --server=$REDIS_SERVER \
+    --port=$REDIS_PORT \
     --protocol=redis \
     --command="addvec vector_table __key__ __data__" \
     --data-import="$DATA_FILE" \

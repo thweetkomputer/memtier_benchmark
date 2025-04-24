@@ -2,7 +2,7 @@ import numpy as np
 import os
 import argparse
 
-def generate_vector(dim=96, normalized=False):
+def generate_vector(dim=96, normalized=True):
     """
     Generate a random vector of specified dimension with float32 data type.
     
@@ -103,8 +103,8 @@ if __name__ == "__main__":
                         help='Number of vectors to save as warm data (default: 2000)')
     parser.add_argument('--search_output', type=str, default='./data/search_vectors_data.csv',
                         help='Output file path for search query vectors (default: ./data/search_vectors_data.csv)')
-    parser.add_argument('--num_queries', type=int, default=1000,
-                        help='Number of search query vectors to generate (default: 1000)')
+    parser.add_argument('--num_queries', type=int, default=0,
+                        help='Number of search query vectors to generate (default: 0)')
     parser.add_argument('--similarity', type=float, default=0.8,
                         help='Similarity factor for search queries (0-1, default: 0.8)')
     parser.add_argument('--normalize', action='store_true',
@@ -145,6 +145,6 @@ if __name__ == "__main__":
             noise_std=0.2
         )
         
-    # Save search query vectors to file
-    save_vectors_to_file_for_memtier(query_vectors, args.search_output)
-    print(f"Saved {len(query_vectors)} search query vectors to {args.search_output}")
+        # Save search query vectors to file
+        save_vectors_to_file_for_memtier(query_vectors, args.search_output)
+        print(f"Saved {len(query_vectors)} search query vectors to {args.search_output}")
