@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ./scripts/config.sh
+
 # Define parameters
 
 if [ -z "$1" ]; then
@@ -11,10 +13,6 @@ THREADS=$1
 CLIENTS=1
 DATA_FILE="./data/vectors_data.csv"
 WARM_DATA_FILE="./data/warm_vectors_data.csv"
-
-# Redis connection parameters
-REDIS_SERVER="192.168.122.33"
-REDIS_PORT="6380"
 
 # Warmup parameters
 WARMUP_THREADS=1

@@ -111,7 +111,10 @@ def find_exact_neighbors(query_vector_str, dataset, k):
 
 def parse_redis_search_results(result_str):
     """
-    Parse Redis vector search results from string format
+    Parse Redis vector search results from string format    
+            |  key  |  distance  |
+            | 208 | 1.495457 |
+            | 460 | 8.954815 |
     
     Args:
         result_str: Raw string output from Redis search command
@@ -132,7 +135,7 @@ def parse_redis_search_results(result_str):
     if matches:
         for key, distance in matches:
             keys.append(key)
-            key_distance_pairs.append((key, float(distance)))
+            key_distance_pairs.append((int(key), round(float(distance), 2)))
         # print(f"Extracted {len(keys)} neighbors: {keys}")
         # print(f"With distances: {key_distance_pairs}")
     else:
@@ -158,7 +161,7 @@ def execute_redis_cli_command(command, redis_host='192.168.122.33', redis_port=6
     
     # Format the command for redis-cli
     redis_cli_cmd = f"redis-cli -h {redis_host} -p {redis_port} {command}"
-    print(f"Running via redis-cli: {redis_cli_cmd}")
+    # print(f"Running via redis-cli: {redis_cli_cmd}")
     
     try:
         # Set a timeout to prevent hanging
@@ -176,7 +179,42 @@ def execute_redis_cli_command(command, redis_host='192.168.122.33', redis_port=6
         return False, "", str(e)
 
 
-def test_recall_usearch(test_num, search_data, added_data, k=10, batch_size=1000000):
+def add_vectors_to_usearch(index, added_data):
+    # Add vectors to USearch index
+    total_success_count = 0
+    total_error_count = 0
+    total_rows = len(added_data)
+    
+    print(f"Processing {total_rows} vectors")
+    for i, row in added_data.iterrows():
+        try:
+            key = row.iloc[8]
+            vector_data = row.iloc[9]
+            
+            # Convert string vector to NumPy array of floats
+            vector = np.array([float(val) for val in vector_data.split(':')])
+            
+            # Add to index (key must be an integer in USearch)
+            if isinstance(key, str) and not key.isdigit():
+                print(f"Invalid key: {key}")
+                exit(-1)
+            else:
+                numeric_key = int(key)
+                
+            index.add(numeric_key, vector)
+            total_success_count += 1
+            
+            if total_success_count % 100 == 0:
+                print(f"Added {total_success_count} vectors to USearch index")
+                
+        except Exception as e:
+            total_error_count += 1
+            print(f"Error processing row {i}: {e}")
+        
+    print(f"Added {total_success_count} vectors to USearch index with {total_error_count} errors")
+    
+
+def test_recall_usearch(search_data, added_data, k=10):
     # Parse sample vector to determine dimensions
     sample_vector = added_data.iloc[0][9].split(':')
     dimensions = len(sample_vector)
@@ -188,66 +226,16 @@ def test_recall_usearch(test_num, search_data, added_data, k=10, batch_size=1000
         dtype='f32'  # 32-bit float
     )
     
-    # Add vectors to USearch index in chunks
-    total_success_count = 0
-    total_error_count = 0
-    
-    # Process the dataframe in chunks
-    chunk_size = batch_size
-    total_rows = len(added_data)
-    
-    for chunk_start in range(0, total_rows, chunk_size):
-        chunk_end = min(chunk_start + chunk_size, total_rows)
-        current_chunk = added_data.iloc[chunk_start:chunk_end]
-        
-        print(f"Processing chunk {chunk_start//chunk_size + 1} ({chunk_start} to {chunk_end-1})")
-        success_count = 0
-        error_count = 0
-        
-        for i, row in current_chunk.iterrows():
-            try:
-                key = row[8]
-                vector_data = row[9]
-                
-                # Convert string vector to NumPy array of floats
-                vector = np.array([float(val) for val in vector_data.split(':')])
-                
-                # Add to index (key must be an integer in USearch)
-                if isinstance(key, str) and not key.isdigit():
-                    print(f"Invalid key: {key}")
-                    exit(-1)
-                else:
-                    numeric_key = int(key)
-                    
-                index.add(numeric_key, vector)
-                success_count += 1
-                
-                if success_count % 100 == 0:
-                    print(f"Added {success_count} vectors to USearch index in current chunk")
-                    
-            except Exception as e:
-                error_count += 1
-                print(f"Error processing row {i}: {e}")
-        
-        total_success_count += success_count
-        total_error_count += error_count
-        
-        print(f"Finished chunk with {success_count} vectors added and {error_count} errors")
-        
-        # Release memory from the current chunk
-        del current_chunk
-        import gc
-        gc.collect()
-        print(f"Released memory for chunk, total progress: {total_success_count}/{total_rows} vectors processed")
-    
-    print(f"Added {total_success_count} vectors to USearch index with {total_error_count} errors")
-    
+    add_vectors_to_usearch(index, added_data)
+
     # Keep track of successful recall rates
     total_matches = 0
     total_attempts = 0
     
+    test_num = len(search_data)
     # Test recall for each query in search data
     print(f"Testing recall with {test_num} queries, top {k} neighbors")
+    
     for i, row in search_data.iterrows():
         try:
             columns = search_data.columns
@@ -288,7 +276,7 @@ def test_recall_usearch(test_num, search_data, added_data, k=10, batch_size=1000
     return overall_recall
 
 
-def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192.168.122.33', redis_port=6380):
+def test_recall_eloqvec(search_data, added_data, k=10, redis_host='192.168.122.33', redis_port=6380):
     # Add vectors to Redis
     # add_vectors_to_redis(added_data)
 
@@ -297,6 +285,7 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
     
     # Check connection
     try:
+        print (f"Connecting to Redis at {redis_host}:{redis_port}")
         r.ping()
         print(f"Successfully connected to Redis at {redis_host}:{redis_port}")
     except redis.ConnectionError:
@@ -312,14 +301,14 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
         try:
             # Extract key and vector from the row (adjust column indices as needed)
             columns = search_data.columns
-            key = row[columns[8]]
-            vector_data = row[columns[9]]
+            key = row.iloc[8]
+            vector_data = row.iloc[9]
             
             # Get top K neighbors from Redis
             print(f"Searching for neighbors of key: {key}")
             # Print the actual command being executed
             command = f"searchvec vector {k} {vector_data}"
-            # print(f"Executing command: {command}")
+            print(f"Executing command: {command}")
             
             # Use the helper function to execute Redis command via redis-cli
             success, redis_result, error = execute_redis_cli_command(command, redis_host, redis_port)
@@ -328,14 +317,7 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
                 print(f"Error executing command: {error}")
                 redis_result = ""
             
-            # Parse Redis results from raw string format
-            # Result comes in format like:
-            # |  key  |  distance  |
-            # | 208 | 1.495457 |
-            # | 460 | 8.954815 |
-            
             # print(f"Raw Redis result: {redis_result}")
-            
             # Convert result to string if it's not already
             if not isinstance(redis_result, str):
                 redis_result_str = str(redis_result)
@@ -344,12 +326,14 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
                 
             # Parse results using the helper function
             approx_neighbors, approx_matches = parse_redis_search_results(redis_result_str)
-            
             # Find ground truth neighbors in the ground truth data
             exact_neighbors, exact_matches = find_exact_neighbors(vector_data, added_data, k)
             
             # Calculate recall for this query
-            matches = sum(1 for n in approx_neighbors if n in exact_neighbors)
+
+            # matches = sum(1 for n in approx_neighbors if n in exact_neighbors)
+            matches = len(set(str(k) for k in approx_neighbors).intersection(set(str(k) for k in exact_neighbors)))
+            
             recall = matches / len(exact_neighbors) if exact_neighbors else 0
             
             print(f"Query {i+1}: Found {matches}/{len(exact_neighbors)} matches. Recall: {recall:.2f}")
@@ -366,25 +350,94 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
     
     return overall_recall 
     
+def test_correctness(search_data, added_data, k=100, redis_host='192.168.122.33', redis_port=6380, mock=False):      
+    dimensions = 96
+
+    if mock:
+        for i in range(added_data.shape[0]):
+            # added_data.iloc[i, 9] = f'{i}:{i+1}'
+            added_data.iloc[i, 9] = ':'.join([f'{np.random.random():.6f}' for _ in range(dimensions)])
+
+    add_vectors_to_redis(added_data, redis_host, redis_port)
+    index = Index(
+        ndim=dimensions,
+        metric=MetricKind.L2sq,
+        dtype='f32'  # 32-bit float
+    )
+
+    add_vectors_to_usearch(index, added_data)
     
+
+    if mock:
+        for i in range(search_data.shape[0]):
+            search_data.iloc[i, 9] = ':'.join([f'{np.random.random():.6f}' for _ in range(dimensions)])
+
+    for i, row in search_data.iterrows():
+        key = row[search_data.columns[8]]
+        vector_data = row[search_data.columns[9]]
         
+        # Search for neighbors in Redis
+        command = f"searchvec vector {k} {vector_data}"
+        # print(command)
+        success, redis_result, error = execute_redis_cli_command(command, redis_host, redis_port)
+        if not success:
+            print(f"Failed to search for key {key}: {error}")
+            continue
+        
+        # Parse results using the helper function
+        eloqvec_neighbors, eloqvec_matches = parse_redis_search_results(redis_result)
+        
+
+        # Search for neighbors in USearch
+        query_vector = np.array([float(val) for val in vector_data.split(':')])
+        usearch_results = index.search(query_vector, k)
+        usearch_neighbors = []
+        usearch_matches = []
+            
+        # Convert numeric keys back to original keys if needed
+        for result in usearch_results:
+            result_key = str(result.key)
+            usearch_neighbors.append(result_key)
+            usearch_matches.append((int(result.key), round(float(result.distance), 2)))
+        
+        # print(eloqvec_matches)
+        # print(usearch_matches)
+        # check the euivalence of two lists
+        if eloqvec_matches != usearch_matches:
+            print("The lists are not equal")
+            print(eloqvec_matches)
+            print(usearch_matches)
+            print(i, 'th query vector:', query_vector.tolist())
+
+            print('double check:')
+            vector1 = np.array([float(val) for val in added_data.iloc[0, 9].split(':')])
+            vector2 = np.array([float(val) for val in added_data.iloc[1, 9].split(':')])
+            distance1 = np.linalg.norm(query_vector - vector1) ** 2
+            distance2 = np.linalg.norm(query_vector - vector2) ** 2
+            print('vector1:', vector1.tolist())
+            print('vector2:', vector2.tolist())
+            print('distance to key-1:', distance1)
+            print('distance to key-2:', distance2)
+            
+    print("All tests passed!")
+
+
 
 if __name__ == '__main__':
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Test vector recall in Redis')
     parser.add_argument('--add_num', type=int, default=10000, help='Number of added vectors to use (default: 1000000)')
-    parser.add_argument('--test_num', type=int, default=100, help='Number of test vectors to use (default: 100)')
+    parser.add_argument('--test_num', type=int, default=20, help='Number of test vectors to use (default: 100)')
     parser.add_argument('--search_file', type=str, default='./data/search_vectors_data.csv', help='Path to search vectors CSV file')
     parser.add_argument('--add_file', type=str, default='./data/vectors_data.csv', help='Path to vectors data CSV file')
-    parser.add_argument('--k', type=int, default=10, help='Number of neighbors to search for (default: 10)')
+    parser.add_argument('--k', type=int, default=100, help='Number of neighbors to search for (default: 10)')
     parser.add_argument('--redis_host', type=str, default='192.168.122.33', help='Redis host (default: 192.168.122.33)')
     parser.add_argument('--redis_port', type=int, default=6380, help='Redis port (default: 6380)')
     parser.add_argument('--test_usearch', type=bool, default=False, help='Use USearch instead of Redis (default: False)')
     parser.add_argument('--test_eloqvec', type=bool, default=False, help='Use Eloqvec instead of Redis (default: False)')
+    parser.add_argument('--test_correctness', type=bool, default=False, help='Compare the search result of eloqvec and usearch (default: False)')
+    parser.add_argument('--mock_test_correctness', type=bool, default=False, help='Compare the search result of eloqvec and usearch (default: False)')
     args = parser.parse_args()
-    
-    # Path to the data file
-    file_path = args.add_file
 
     # Read search data from CSV (limited to test_num rows)
     search_data = read_data_from_csv(args.search_file, args.test_num)
@@ -393,9 +446,18 @@ if __name__ == '__main__':
     added_data = read_data_from_csv(args.add_file, args.add_num)
     
     # Test recall with configurable test_num
-    print(f"Running recall test with {args.test_num} test vectors...")
     if args.test_usearch:
-        test_recall_usearch(args.test_num, search_data, added_data, args.k)
+        print(f"Running recall test with {args.test_num} test vectors...")
+        test_recall_usearch(search_data, added_data, args.k)
     
     if args.test_eloqvec:
-        test_recall_eloqvec(args.test_num, search_data, added_data, args.k)
+        print(f"Running recall test with {args.test_num} test vectors...")
+        test_recall_eloqvec(search_data, added_data, args.k, args.redis_host, args.redis_port)
+
+    if args.test_correctness:
+        print(f"Running correctness test with {args.test_num} test vectors...")
+        test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port)
+    
+    if args.mock_test_correctness:
+        print(f"Running correctness test with {args.test_num} test vectors...")
+        test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port, True)

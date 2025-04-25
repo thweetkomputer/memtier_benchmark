@@ -1,5 +1,6 @@
 #!/bin/bash
 
+source ./scripts/config.sh
 if [ -z "$1" ]; then
     echo "Error: Please provide a number of vectors as an argument."
     exit 1
@@ -23,4 +24,4 @@ sleep 3
 # Add vectors to Eloqvec
 ./scripts/add_vector.sh 30
 
-python ./scripts/test_recall.py --k $K
+python ./scripts/test_recall.py --k $K --test_eloqvec=True --redis_host=$REDIS_SERVER --redis_port=$REDIS_PORT
