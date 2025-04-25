@@ -1,4 +1,4 @@
-# read all data from csv and add vectors to Redis
+# TODO: refactor these script, make code clean and readable
 import pandas as pd
 import redis
 import argparse
@@ -176,7 +176,7 @@ def execute_redis_cli_command(command, redis_host='192.168.122.33', redis_port=6
         return False, "", str(e)
 
 
-def test_recall_usearch(test_num, search_data, added_data, k=10):
+def test_recall_usearch(test_num, search_data, added_data, k=10, batch_size=1000000):
     # Parse sample vector to determine dimensions
     sample_vector = added_data.iloc[0][9].split(':')
     dimensions = len(sample_vector)
@@ -188,38 +188,59 @@ def test_recall_usearch(test_num, search_data, added_data, k=10):
         dtype='f32'  # 32-bit float
     )
     
-    # Add vectors to USearch index
-    success_count = 0
-    error_count = 0
+    # Add vectors to USearch index in chunks
+    total_success_count = 0
+    total_error_count = 0
     
-    for i, row in added_data.iterrows():
-        try:
-            key = row[8]
-            vector_data = row[9]
-            
-            # Convert string vector to NumPy array of floats
-            vector = np.array([float(val) for val in vector_data.split(':')])
-
-            # print(f"Adding vector {i+1} with key {key} and vector {vector}")            
-            # Add to index (key must be an integer in USearch)
-            # Using hash of string key if the key is not already an integer
-            if isinstance(key, str) and not key.isdigit():
-                print(f"Invalid key: {key}")
-                exit(-1)
-            else:
-                numeric_key = int(key)
-                
-            index.add(numeric_key, vector)
-            success_count += 1
-            
-            if success_count % 100 == 0:
-                print(f"Added {success_count} vectors to USearch index")
-                
-        except Exception as e:
-            error_count += 1
-            print(f"Error processing row {i}: {e}")
+    # Process the dataframe in chunks
+    chunk_size = batch_size
+    total_rows = len(added_data)
     
-    print(f"Added {success_count} vectors to USearch index with {error_count} errors")
+    for chunk_start in range(0, total_rows, chunk_size):
+        chunk_end = min(chunk_start + chunk_size, total_rows)
+        current_chunk = added_data.iloc[chunk_start:chunk_end]
+        
+        print(f"Processing chunk {chunk_start//chunk_size + 1} ({chunk_start} to {chunk_end-1})")
+        success_count = 0
+        error_count = 0
+        
+        for i, row in current_chunk.iterrows():
+            try:
+                key = row[8]
+                vector_data = row[9]
+                
+                # Convert string vector to NumPy array of floats
+                vector = np.array([float(val) for val in vector_data.split(':')])
+                
+                # Add to index (key must be an integer in USearch)
+                if isinstance(key, str) and not key.isdigit():
+                    print(f"Invalid key: {key}")
+                    exit(-1)
+                else:
+                    numeric_key = int(key)
+                    
+                index.add(numeric_key, vector)
+                success_count += 1
+                
+                if success_count % 100 == 0:
+                    print(f"Added {success_count} vectors to USearch index in current chunk")
+                    
+            except Exception as e:
+                error_count += 1
+                print(f"Error processing row {i}: {e}")
+        
+        total_success_count += success_count
+        total_error_count += error_count
+        
+        print(f"Finished chunk with {success_count} vectors added and {error_count} errors")
+        
+        # Release memory from the current chunk
+        del current_chunk
+        import gc
+        gc.collect()
+        print(f"Released memory for chunk, total progress: {total_success_count}/{total_rows} vectors processed")
+    
+    print(f"Added {total_success_count} vectors to USearch index with {total_error_count} errors")
     
     # Keep track of successful recall rates
     total_matches = 0
@@ -351,6 +372,7 @@ def test_recall_eloqvec(test_num, search_data, added_data, k=10, redis_host='192
 if __name__ == '__main__':
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Test vector recall in Redis')
+    parser.add_argument('--add_num', type=int, default=10000, help='Number of added vectors to use (default: 1000000)')
     parser.add_argument('--test_num', type=int, default=100, help='Number of test vectors to use (default: 100)')
     parser.add_argument('--search_file', type=str, default='./data/search_vectors_data.csv', help='Path to search vectors CSV file')
     parser.add_argument('--add_file', type=str, default='./data/vectors_data.csv', help='Path to vectors data CSV file')
@@ -368,8 +390,8 @@ if __name__ == '__main__':
     search_data = read_data_from_csv(args.search_file, args.test_num)
     
     # Read added data from add_file_path
-    added_data = read_data_from_csv(args.add_file)
-
+    added_data = read_data_from_csv(args.add_file, args.add_num)
+    
     # Test recall with configurable test_num
     print(f"Running recall test with {args.test_num} test vectors...")
     if args.test_usearch:
