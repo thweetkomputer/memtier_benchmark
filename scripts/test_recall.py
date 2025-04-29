@@ -421,7 +421,18 @@ def test_correctness(search_data, added_data, k=100, redis_host='192.168.122.33'
             
     print("All tests passed!")
 
-
+def create_table(table_name, dimensions, redis_host, redis_port):
+    r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+    try:
+        result = r.execute_command('createcollection', table_name, str(dimensions))
+        assert result == 'OK'
+        print(f"Collection {table_name} created successfully.")
+    except Exception as err:
+        if str(err) == 'Collection already exists':
+            print(f"Collection {table_name} already exists.")
+        else:
+            print(f"Failed to create collection {table_name}: {err}")
+            exit(-1)
 
 if __name__ == '__main__':
     # Set up argument parser
@@ -444,6 +455,11 @@ if __name__ == '__main__':
     
     # Read added data from add_file_path
     added_data = read_data_from_csv(args.add_file, args.add_num)
+
+    sample_vector = added_data.iloc[0][9].split(':')
+    dimensions = len(sample_vector)
+    
+    create_table('vector', dimensions, args.redis_host, args.redis_port)
     
     # Test recall with configurable test_num
     if args.test_usearch:

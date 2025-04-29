@@ -33,6 +33,9 @@ TOTAL_LINES=$((TOTAL_LINES - 1))
 WARMUP_REQUESTS=$WARM_TOTAL_LINES
 REQUESTS=$((TOTAL_LINES / TOTAL_CLIENTS))
 
+# Create table
+redis-cli -h $REDIS_SERVER -p $REDIS_PORT 'createcollection' 'vector' $DIM
+
 echo "=== Warmup Stage Settings ==="
 echo "Warm data file: $WARM_DATA_FILE"
 echo "Warm data lines: $WARM_TOTAL_LINES"
@@ -52,7 +55,7 @@ echo "=== Starting Warmup Stage ==="
     --server=$REDIS_SERVER \
     --port=$REDIS_PORT \
     --protocol=redis \
-    --command="addvec vector_table __key__ __data__" \
+    --command="addvec vector __key__ __data__" \
     --data-import="$WARM_DATA_FILE" \
     --threads=$WARMUP_THREADS \
     --clients=$WARMUP_CLIENTS \
@@ -65,7 +68,7 @@ echo "=== Starting Main Stage ==="
     --server=$REDIS_SERVER \
     --port=$REDIS_PORT \
     --protocol=redis \
-    --command="addvec vector_table __key__ __data__" \
+    --command="addvec vector __key__ __data__" \
     --data-import="$DATA_FILE" \
     --threads=$THREADS \
     --clients=$CLIENTS \

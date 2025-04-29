@@ -1,5 +1,5 @@
 #!/bin/bash
-
+source ./scripts/config.sh
 # Define parameters
 THREADS=$1
 
@@ -21,7 +21,6 @@ TOTAL_LINES=$((TOTAL_LINES - 1))
 
 # Calculate requests per client for each stage
 REQUESTS=$((TOTAL_LINES / TOTAL_CLIENTS))
-REDIS_SERVER=192.168.122.33
 K=10
 
 echo "=== Main Stage Settings ==="
@@ -35,9 +34,9 @@ echo ""
 echo "=== Starting Main Stage ==="
 ./memtier_benchmark \
     --server=$REDIS_SERVER \
-    --port=6380 \
+    --port=$REDIS_PORT \
     --protocol=redis \
-    --command="searchvec vector_table $K __data__" \
+    --command="searchvec vector $K __data__" \
     --data-import="$DATA_FILE" \
     --threads=$THREADS \
     --clients=$CLIENTS \
