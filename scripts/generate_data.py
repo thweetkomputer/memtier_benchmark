@@ -94,12 +94,12 @@ def generate_search_queries(vectors, num_queries, similarity_factor=0.8, noise_s
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Generate and save vectors with float32 data type')
-    parser.add_argument('--num_vectors', type=int, default=5000, help='Number of vectors to generate (default: 5000)')
+    parser.add_argument('--num_vectors', type=int, default=10000, help='Number of vectors to generate (default: 5000)')
     parser.add_argument('--dim', type=int, default=96, help='Dimension of each vector (default: 96)')
     parser.add_argument('--output', type=str, default='./data/vectors_data.csv', help='Output file path (default: ./data/vectors_data.csv)')
     parser.add_argument('--warm_output', type=str, default='./data/warm_vectors_data.csv', 
                         help='Output file path for warm data (first 5000 vectors) (default: ./data/warm_vectors_data.csv)')
-    parser.add_argument('--warm_size', type=int, default=2000, 
+    parser.add_argument('--warm_size', type=int, default=0, 
                         help='Number of vectors to save as warm data (default: 2000)')
     parser.add_argument('--search_output', type=str, default='./data/search_vectors_data.csv',
                         help='Output file path for search query vectors (default: ./data/search_vectors_data.csv)')

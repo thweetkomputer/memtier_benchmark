@@ -21,12 +21,12 @@ TOTAL_LINES=$((TOTAL_LINES - 1))
 
 # Calculate requests per client for each stage
 REQUESTS=$((TOTAL_LINES / TOTAL_CLIENTS))
+REQUESTS=$((TOTAL_LINES / TOTAL_CLIENTS * 10))
 K=10
 
 echo "=== Main Stage Settings ==="
 echo "Main data file: $DATA_FILE"
-echo "Main data lines: $TOTAL_LINES"
-echo "Total clients: $TOTAL_CLIENTS (threads=$THREADS × clients=$CLIENTS)"
+echo "Main data lines: $TOTAL_LINES" echo "Total clients: $TOTAL_CLIENTS (threads=$THREADS × clients=$CLIENTS)"
 echo "Requests per client: $REQUESTS"
 
 # Run main stage with calculated parameters

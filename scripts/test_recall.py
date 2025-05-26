@@ -226,6 +226,7 @@ def test_recall_usearch(search_data, added_data, k=10):
         dtype='f32'  # 32-bit float
     )
     
+    print('add')
     add_vectors_to_usearch(index, added_data)
 
     # Keep track of successful recall rates
@@ -249,6 +250,7 @@ def test_recall_usearch(search_data, added_data, k=10):
             
             # Search with USearch
             usearch_results = index.search(query_vector, k)
+            # usearch_results = index.search(query_vector, k, exact=True)
             usearch_keys = []
             
             # Convert numeric keys back to original keys if needed
@@ -323,7 +325,7 @@ def test_recall_eloqvec(search_data, added_data, k=10, redis_host='192.168.122.3
                 redis_result_str = str(redis_result)
             else:
                 redis_result_str = redis_result
-                
+            # import pdb;pdb.set_trace()
             # Parse results using the helper function
             approx_neighbors, approx_matches = parse_redis_search_results(redis_result_str)
             # Find ground truth neighbors in the ground truth data
@@ -390,7 +392,7 @@ def test_correctness(search_data, added_data, k=100, redis_host='192.168.122.33'
 
         # Search for neighbors in USearch
         query_vector = np.array([float(val) for val in vector_data.split(':')])
-        usearch_results = index.search(query_vector, k)
+        usearch_results = index.search(query_vector, k, exact=True)
         usearch_neighbors = []
         usearch_matches = []
             
@@ -404,6 +406,7 @@ def test_correctness(search_data, added_data, k=100, redis_host='192.168.122.33'
         # print(usearch_matches)
         # check the euivalence of two lists
         if eloqvec_matches != usearch_matches:
+            import pdb;pdb.set_trace()
             print("The lists are not equal")
             print(eloqvec_matches)
             print(usearch_matches)
@@ -418,8 +421,10 @@ def test_correctness(search_data, added_data, k=100, redis_host='192.168.122.33'
             print('vector2:', vector2.tolist())
             print('distance to key-1:', distance1)
             print('distance to key-2:', distance2)
+            return False
             
     print("All tests passed!")
+    return True
 
 def create_table(table_name, dimensions, redis_host, redis_port):
     r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
@@ -451,15 +456,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Read search data from CSV (limited to test_num rows)
+    print('read search data')
     search_data = read_data_from_csv(args.search_file, args.test_num)
     
     # Read added data from add_file_path
+    print('read add data')
     added_data = read_data_from_csv(args.add_file, args.add_num)
 
     sample_vector = added_data.iloc[0][9].split(':')
     dimensions = len(sample_vector)
     
-    create_table('vector', dimensions, args.redis_host, args.redis_port)
+    if args.test_eloqvec:
+        print('create table')
+        create_table('vector', dimensions, args.redis_host, args.redis_port)
     
     # Test recall with configurable test_num
     if args.test_usearch:
@@ -472,8 +481,14 @@ if __name__ == '__main__':
 
     if args.test_correctness:
         print(f"Running correctness test with {args.test_num} test vectors...")
-        test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port)
+        if test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port):
+            print("Pass")
+        else:
+            print("Fail")
     
     if args.mock_test_correctness:
         print(f"Running correctness test with {args.test_num} test vectors...")
-        test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port, True)
+        if test_correctness(search_data, added_data, args.k, args.redis_host, args.redis_port, True):
+            print("Pass")
+        else:
+            print("Fail")
